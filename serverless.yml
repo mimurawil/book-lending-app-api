@@ -1,0 +1,131 @@
+# Welcome to Serverless!
+#
+# This file is the main config file for your service.
+# It's very minimal at this point and uses default values.
+# You can always add more config options for more control.
+# We've included some commented out config examples here.
+# Just uncomment any of them to get that config option.
+#
+# For full config options, check the docs:
+#    docs.serverless.com
+#
+# Happy Coding!
+
+service: book-lending-app-api
+
+# You can pin your service to only deploy with a specific Serverless version
+# Check out our docs for more details
+# frameworkVersion: "=X.X.X"
+frameworkVersion: ">=1.1.0 <2.0.0"
+
+custom:
+  TABLE_BOOK: book-lending-app-book
+
+resources:
+  Resources:
+    BookDynamoTable:
+      Type: "AWS::DynamoDB::Table"
+#      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: "itemId"
+            AttributeType: "S"
+        KeySchema:
+          -
+            AttributeName: "itemId"
+            KeyType: "HASH"
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:custom.TABLE_BOOK}
+
+provider:
+  name: aws
+  runtime: nodejs6.10
+  stage: dev
+  region: us-west-2
+  profile: mimurawil@gmail.com
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:*
+      Resource:
+        Fn::GetAtt:
+          - BookDynamoTable
+          - Arn
+
+functions:
+  authorize:
+    handler: handlers/authorize.handler
+    memorySize: 128
+    timeout: 3
+    runtime: nodejs6.10
+    environment:
+    # you need to generate one JWT secret here... you can get one at https://www.grc.com/passwords.htm
+      JWT_SECRET: 
+  listBooks:
+    handler: handlers/listBooks.handler
+    memorySize: 128
+    timeout: 3
+    runtime: nodejs6.10
+    environment:
+      TABLE: ${self:custom.TABLE_BOOK}
+    events:
+      - http:
+          path: books
+          method: get
+          cors: true
+          # authorizer: authorize  # no need for authorization for listing books
+  reserveBook:
+    handler: handlers/reserveBook.handler
+    memorySize: 128
+    timeout: 3
+    runtime: nodejs6.10
+    environment:
+      TABLE: ${self:custom.TABLE_BOOK}
+    events:
+      - http:
+          path: reservations/{id}
+          method: post
+          cors: true
+          authorizer: authorize # autorization here
+          request:
+            parameters:
+              paths:
+                id: true
+  borrowBook:
+    handler: handlers/borrowBook.handler
+    memorySize: 128
+    timeout: 3
+    runtime: nodejs6.10
+    environment:
+      TABLE: ${self:custom.TABLE_BOOK}
+    events:
+      - http:
+          path: lendings/{id}
+          method: post
+          cors: true
+          authorizer: authorize # autorization here
+          request:
+            parameters:
+              paths:
+                id: true
+  returnBook:
+    handler: handlers/returnBook.handler
+    memorySize: 128
+    timeout: 3
+    runtime: nodejs6.10
+    environment:
+      TABLE: ${self:custom.TABLE_BOOK}
+    events:
+      - http:
+          path: returnings/{id}
+          method: post
+          cors: true
+          authorizer: authorize # autorization here
+          request:
+            parameters:
+              paths:
+                id: true
+
